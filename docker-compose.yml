@@ -1,0 +1,80 @@
+version: '3.8'
+
+services:
+  app:
+    container_name: nestjs_app
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    depends_on:
+      - oracle
+      - redis
+      - sonarqube
+    environment:
+      ORACLE_USER: my_user
+      ORACLE_PASSWORD: my_password
+      ORACLE_CONNECTION_STRING: "oracle:1521/endtoend"
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    #command: "npm run start:dev"
+    command: sh -c "sleep 30 && npm run start:dev"
+
+  oracle:
+    container_name: oracle
+    image: gvenzl/oracle-free:latest
+    ports:
+      - "1521:1521"
+      - "5500:5500"
+    environment:
+      APP_USER: my_user
+      APP_USER_PASSWORD: my_password
+      ORACLE_PASSWORD: your_password
+      ORACLE_DATABASE: endtoend
+    shm_size: '1gb'
+    volumes:
+      - oracle_data:/opt/oracle/oradata gvenzl/oracle-free
+
+  redis:
+    container_name: redis
+    image: redis:latest
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+
+  sonarqube:
+    image: sonarqube:latest
+    container_name: sonarqube
+    environment:
+      - SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true
+    ports:
+      - "9000:9000"
+    volumes:
+      - sonarqube_conf:/opt/sonarqube/conf
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_logs:/opt/sonarqube/logs
+      - sonarqube_extensions:/opt/sonarqube/extensions
+
+  sonar-scanner:
+    image: sonarsource/sonar-scanner-cli
+    depends_on:
+      - sonarqube
+    volumes:
+      - .:/usr/src
+    working_dir: /usr/src
+    environment:
+      - SONAR_HOST_URL=http://sonarqube:9000
+      - SONAR_LOGIN=your_generated_token
+
+
+volumes:
+  oracle_data:
+  sonarqube_conf:
+  sonarqube_data:
+  sonarqube_logs:
+  sonarqube_extensions:
